@@ -94,40 +94,44 @@ def eval_model(args):
 
         cfg_pretrained = AutoConfig.from_pretrained(model_path)
         
-    print("Model Path:", model_path)
     if '7B' in model_path:
         tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, model_name, device_map="cuda:0", overwrite_config=overwrite_config)
     elif '34B' in model_path:
         tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, model_name, device_map="auto", overwrite_config=overwrite_config)
     model.to('cuda').eval()
-
-    image_file = args.image_file
-    visual = Image.open(image_file)
-    image_sizes = [visual.size]
-
-    args.conv_mode = "qwen_1_5"
     
-    question = "Describe this image."
+    question = "Could you explain how many image uses as input. Also describe these images in one sentence for each images."
     question = "<image>\n" + question
+    
+    args.conv_mode = "qwen_1_5"
 
     conv = conv_templates[args.conv_mode].copy()
     conv.append_message(conv.roles[0], question)
     conv.append_message(conv.roles[1], None)
     prompt = conv.get_prompt()
 
+
+    image_tensor, image_highres_tensor = [], []
+    image_sizes = []
+    
+    image_processor.do_resize = False
+    image_processor.do_center_crop = False
+    
+    for image_file in args.image_files.split(','):
+        print("Processing image:", image_file)
+        visual = Image.open(image_file)
+        visual_resized = visual.resize((384, 384), Image.BICUBIC)
+        image_tensor_, image_highres_tensor_ = process_anyres_highres_image_genli(visual_resized, image_processor)
+        image_tensor.append(image_tensor_)
+        image_highres_tensor.append(image_highres_tensor_)
+        
+    image_sizes.append(visual.size)
+
     if '7B' in model_path:
         input_ids = preprocess_qwen([{'from': 'human','value': question},{'from': 'gpt','value': None}], tokenizer, has_image=True).cuda()
     elif '34B' in model_path:
         input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to('cuda:0')
 
-    image_tensor, image_highres_tensor = [], []
-    image_processor.do_resize = False
-    image_processor.do_center_crop = False
-
-    image_tensor_, image_highres_tensor_ = process_anyres_highres_image_genli(visual, image_processor)
-
-    image_tensor.append(image_tensor_)
-    image_highres_tensor.append(image_highres_tensor_)
 
     image_tensor = torch.stack(image_tensor, dim=0)
     image_highres_tensor = torch.stack(image_highres_tensor, dim=0)
@@ -167,7 +171,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, default="")
     parser.add_argument("--model-base", type=str, default=None)
-    parser.add_argument("--image-file", type=str, default="")
+    parser.add_argument("--image-files", type=str, default="")
     parser.add_argument("--frames-upbound", type=int, default=64)
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--top_p", type=float, default=None)
