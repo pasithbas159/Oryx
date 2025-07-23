@@ -184,7 +184,6 @@ if __name__ == "__main__":
         test_json_path="train_cache/test_conversation.json"
     )
 
-    # Example: Use the first sample in test_conversation_dataset
     if len(test_conversation_dataset) == 0:
         print("No test samples found.")
         exit(0)
@@ -201,9 +200,11 @@ if __name__ == "__main__":
             if item["type"] == "text":
                 prompt = item["text"]
                 break
-
-        output = eval_model(args, image_files, prompt)
+            
+        print(f"Processing sample with prompt: {prompt}")
+        print(f"Image files: {image_files}")
         
+        output = eval_model(args, image_files, prompt)
         outputs.append(output)
         
     # Save outputs to a file
