@@ -1,4 +1,5 @@
 import re
+import os
 import argparse
 import torch
 import math
@@ -95,10 +96,11 @@ def eval_model(args, image_files, prompt):
 
         cfg_pretrained = AutoConfig.from_pretrained(model_path)
         
-    if '7B' in model_path:
+    if '7b' in model_path:
         tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, model_name, device_map="cuda:0", overwrite_config=overwrite_config)
-    elif '34B' in model_path:
+    elif '34b' in model_path:
         tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, model_name, device_map="auto", overwrite_config=overwrite_config)
+    
     model.to('cuda').eval()
     
     args.conv_mode = "qwen_1_5"
@@ -116,16 +118,19 @@ def eval_model(args, image_files, prompt):
     
     for image_file in image_files:
         print("Processing image:", image_file)
-        visual = Image.open(image_file)
+        if isinstance(image_file, str):
+            visual = Image.open(image_file)
+        else:
+            visual = image_file  # Already a PIL image
         visual_resized = visual.resize((384, 384), Image.BICUBIC)
         image_tensor_, image_highres_tensor_ = process_anyres_highres_image_genli(visual_resized, image_processor)
         image_tensor.append(image_tensor_)
         image_highres_tensor.append(image_highres_tensor_)
         image_sizes.append(visual.size)
 
-    if '7B' in model_path:
+    if '7b' in model_path:
         input_ids = preprocess_qwen([{'from': 'human','value': prompt},{'from': 'gpt','value': None}], tokenizer, has_image=True).cuda()
-    elif '34B' in model_path:
+    elif '34b' in model_path:
         input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to('cuda:0')
 
     image_tensor = torch.stack(image_tensor, dim=0)
@@ -175,8 +180,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # --- Load test dataset from preprocessing ---
-    args.mapped_images_folder = "data"
     dataset_list = create_dataset_list(args.mapped_images_folder)
+    os.makedirs("train_cache", exist_ok=True)
     _, _, test_conversation_dataset = split_train_val_test(
         dataset_list,
         train_json_path="train_cache/train_conversation.json",
