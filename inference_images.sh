@@ -6,4 +6,4 @@ export MINRES=0
 export VIDEO_MAXRES=480
 export VIDEO_MINRES=288
 
-python inference_image.py --model-path /workspace/Oryx/models/THUdyh-Oryx-7B --image-files /workspace/Oryx/data/839_20180820_predict_SendRid_page_5_img_2_sub1.jpeg,/workspace/Oryx/data/839_20180820_predict_SendRid_page_7_img_2_sub1.jpeg
+python inference_images.py --model-path /workspace/Oryx/models/THUdyh-Oryx-7B --mapped-images-folder /workspace/Oryx/data
