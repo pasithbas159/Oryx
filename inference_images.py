@@ -215,4 +215,5 @@ if __name__ == "__main__":
     # Save outputs to a file
     with open("test_outputs.txt", "w") as f:
         for output in outputs:
+            print('----------------------------------------------------')
             f.write(output + "\n")
